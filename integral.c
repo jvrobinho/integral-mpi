@@ -1,10 +1,13 @@
+//The code below is from Professor Lucia Drummond's Distributed Systems class.
+
 #include <stdio.h>
 #include "mpi.h"
+
 int main(int argc, char **argv){
     int my_rank;
     int p;                  // número de processos
     float a = 0.0, b = 1.0; // intervalo a calcular
-    int n = 1023;           // número de trapezóides
+    int n = 4096;           // número de trapezóides
     float h;                // base do trapezóide
     float local_a, local_b; // intervalo local
     int local_n;            // número de trapezóides local
@@ -24,20 +27,28 @@ int main(int argc, char **argv){
     local_a = a + my_rank * local_n * h;
     local_b = local_a + local_n * h;
     integral = calcula(local_a, local_b, local_n, h);
-    if (my_rank == 0){
-        total = integral;
-        for (source = 1; source < p; source++){
-            MPI_Recv(&integral, 1, MPI_FLOAT, source, tag,
-                     MPI_COMM_WORLD, &status);
-            total += integral;
-        }
-    }
-    else
-        MPI_Send(&integral, 1, MPI_FLOAT, dest,
-                 tag, MPI_COMM_WORLD);
+
+    //Reduce all local integrals to the master process (rank 0) using MPI_SUM.
+    total = integral;
+    MPI_Reduce(&integral, &total, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+    
+    //Send all local integrals to the master process (rank 0) and sum into "total".
+    //Comment out the code above to use this snippet.
+
+    // if (my_rank == 0){
+    //     total = integral;
+    //     for (source = 1; source < p; source++){
+    //         MPI_Recv(&integral, 1, MPI_FLOAT, source, tag,
+    //                  MPI_COMM_WORLD, &status);
+    //         total += integral;
+    //     }
+    // }
+    // else
+    //     MPI_Send(&integral, 1, MPI_FLOAT, dest,
+    //              tag, MPI_COMM_WORLD);
 
     if (my_rank == 0)
-        printf("Resultado: %f\n", total);
+        printf("Resultado do calculo: %f\n", total);
     MPI_Finalize();
 }
 

@@ -46,7 +46,7 @@ int main(int argc, char **argv){
     
     integral = calcula(local_a, local_b, local_n, h);
 
-    if(rem_n && my_rank != 0){
+    if(rem_n && my_rank < rem_n){
         //Each process will calculate ONE trapezoid.
         rem_integral = calcula(local_a, local_b, 1, h);
         //printf("Remainder trapezoids integral (rank %d) = %f\n\n", my_rank, rem_integral);    

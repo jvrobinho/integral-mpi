@@ -3,6 +3,9 @@
 #include <stdio.h>
 #include "mpi.h"
 
+float funcao(float x); // função a integrar
+float calcula(float local_a, float local_b, int local_n, float h);
+
 int main(int argc, char **argv){
     int my_rank;
     int p;                  // número de processos
@@ -18,12 +21,10 @@ int main(int argc, char **argv){
     int tag = 200;          // tipo de mensagem (único)
     MPI_Status status;    
     
-    int rem_n; //Remaining trapezoids
-    float rem_integral;
-    float rem_total;
+    int rem_n = 0; //Remaining trapezoids
+    float rem_integral = 0;
+    float rem_total = 0;
     float before_rem;
-    
-    float calcula(float local_a, float local_b, int local_n, float h);
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
@@ -52,7 +53,6 @@ int main(int argc, char **argv){
         //printf("Remainder trapezoids integral (rank %d) = %f\n\n", my_rank, rem_integral);    
     }
 
-
     //Reduce all local integrals to the master process (rank 0) using MPI_SUM.
     total = integral;
     MPI_Reduce(&integral, &total, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -63,40 +63,26 @@ int main(int argc, char **argv){
     rem_total = rem_integral;
     MPI_Reduce(&rem_integral, &rem_total, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
 
-    //Send all local integrals to the master process (rank 0) and sum into "total".
-    //Choose either the code above or the one below.
-    
-    // if (my_rank == 0){
-    //     total = integral;
-    //     for (source = 1; source < p; source++){
-    //         MPI_Recv(&integral, 1, MPI_FLOAT, source, tag,
-    //                  MPI_COMM_WORLD, &status);
-    //         total += integral;
-    //     }
-    // }
-    // else
-    //     MPI_Send(&integral, 1, MPI_FLOAT, dest,
-    //              tag, MPI_COMM_WORLD);
-   
-
     //Perform load balancing so each processor calculates only one trapezoid's area.
     //By the end, all remaining trapezoids will have their area calculated.
-    if (my_rank == 0){
-        for (source = 1; source < p; source++){
-            MPI_Recv(&rem_integral, 1, MPI_FLOAT, source, tag, MPI_COMM_WORLD, &status);
-            total += rem_integral;
+    if (rem_n){
+        if (my_rank == 0){
+            for (source = 1; source < p; source++){
+                MPI_Recv(&rem_integral, 1, MPI_FLOAT, source, tag, MPI_COMM_WORLD, &status);
+                total += rem_integral;
+            }
         }
+        else
+            MPI_Send(&rem_integral, 1, MPI_FLOAT, dest, tag, MPI_COMM_WORLD);
     }
-    else
-        MPI_Send(&rem_integral, 1, MPI_FLOAT, dest, tag, MPI_COMM_WORLD);
     
     //Print results
     if (my_rank == 0){
         printf("**********************************************************\n");
-        printf("*Area excluindo trapezoides resultantes: %f        *\n", before_rem);
-        printf("*Numero de trapezoides resultantes: %d                    *\n", rem_n);
-        printf("*Area dos trapezoides resultantes: %f              *\n", rem_total);
-        printf("*Resultado final: %f                               *\n", total);
+        printf("*Area excluindo trapezoides resultantes: %f\n", before_rem);
+        printf("*Numero de trapezoides resultantes: %d\n", rem_n);
+        printf("*Area dos trapezoides resultantes: %f\n", rem_total);
+        printf("*Resultado final: %f\n", total);
     }
     MPI_Finalize();
 }
@@ -104,21 +90,20 @@ int main(int argc, char **argv){
 float calcula(float local_a, float local_b, int local_n, float h){
     float integral;
     float x, i;
-    float f(float x); // função a integrar
-    integral = (f(local_a) + f(local_b)) / 2.0;
+    integral = (funcao(local_a) + funcao(local_b)) / 2.0;
 
     x = local_a;
     for (i = 1; i <= local_n; i++){
         x += h;
-        integral += f(x);
+        integral += funcao(x);
     }
     integral *= h;
     return integral;
 }
 
-float f(float x) {
-
+float funcao(float x) {
  float fx; // valor de retorno
+
  // esta é a função a integrar
  // exemplo: função quadrática
  fx = x * x;

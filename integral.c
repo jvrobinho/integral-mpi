@@ -39,10 +39,10 @@ int main(int argc, char **argv){
     local_n = n / p;
     //printf("Local n = %d\n", local_n);
 
-    local_a = a + my_rank * local_n * h;
+    local_a = a + (my_rank * local_n * h);
     //printf("Local a = %f\n", local_a);
 
-    local_b = local_a + local_n * h;
+    local_b = local_a + (local_n * h);
     //printf("Local b = %f\n\n", local_b);
     
     integral = calcula(local_a, local_b, local_n, h);
@@ -88,17 +88,18 @@ int main(int argc, char **argv){
 }
 
 float calcula(float local_a, float local_b, int local_n, float h){
-    float integral;
-    float x, i;
-    integral = (funcao(local_a) + funcao(local_b)) / 2.0;
+    float integral = 0, resultado = 0;
+    float x = local_a, x_next = local_a + h;
 
-    x = local_a;
-    for (i = 1; i <= local_n; i++){
-        x += h;
-        integral += funcao(x);
+    for (int i = 0; i < local_n; i++){
+        integral = (funcao(x) + funcao(x_next)) * h;
+        integral /= 2.0;
+        resultado += integral;
+        x = x_next;
+        x_next += h;
     }
-    integral *= h;
-    return integral;
+
+    return resultado;
 }
 
 float funcao(float x) {

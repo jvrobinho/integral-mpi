@@ -47,35 +47,27 @@ int main(int argc, char **argv){
     
     integral = calcula(local_a, local_b, local_n, h);
 
-    if(rem_n && my_rank < rem_n){
-        //Each process will calculate ONE trapezoid.
-        rem_integral = calcula(local_a, local_b, 1, h);
-        //printf("Remainder trapezoids integral (rank %d) = %f\n\n", my_rank, rem_integral);    
-    }
-
     //Reduce all local integrals to the master process (rank 0) using MPI_SUM.
     total = integral;
     MPI_Reduce(&integral, &total, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
-    
-    before_rem = total; //Area before summing the remainder trapezoids. 
+
+    if(rem_n && my_rank < rem_n){
+        //Each process will calculate ONE trapezoid.
+        float last_local_b =  (b-a) - rem_n * h;
+        local_a = last_local_b + (h * my_rank);
+        local_b = local_a + h;
+        rem_integral += calcula(local_a, local_b, 1, h);
+        //printf("Remainder trapezoids integral (rank %d) = %f\n\n", my_rank, rem_integral);
+    }
+
+    before_rem = total; //Area before summing the remainder trapezoids.
 
     //For debugging purposes.
     rem_total = rem_integral;
     MPI_Reduce(&rem_integral, &rem_total, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
 
-    //Perform load balancing so each processor calculates only one trapezoid's area.
-    //By the end, all remaining trapezoids will have their area calculated.
-    if (rem_n){
-        if (my_rank == 0){
-            for (source = 1; source < p; source++){
-                MPI_Recv(&rem_integral, 1, MPI_FLOAT, source, tag, MPI_COMM_WORLD, &status);
-                total += rem_integral;
-            }
-        }
-        else
-            MPI_Send(&rem_integral, 1, MPI_FLOAT, dest, tag, MPI_COMM_WORLD);
-    }
-    
+    total += rem_total;
+
     //Print results
     if (my_rank == 0){
         printf("**********************************************************\n");
